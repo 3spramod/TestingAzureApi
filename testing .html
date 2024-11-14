@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Azure DevOps Build Info</title>
+    <title>Azure DevOps Sprints - Stacked Bar Chart</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -12,65 +12,141 @@
         h1 {
             color: #333;
         }
-        #build-info {
-            background-color: #f9f9f9;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-        p {
-            font-size: 16px;
-            margin: 8px 0;
-        }
-        strong {
-            color: #005f99;
+        #sprintChartContainer {
+            width: 80%;
+            margin: 0 auto;
         }
     </style>
+    <!-- Include Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <h1>Build Duration and End Time</h1>
-    
-    <div id="build-info">
-        <!-- Build data will be displayed here -->
+    <h1>Azure DevOps Sprint Chart</h1>
+
+    <!-- Chart container -->
+    <div id="sprintChartContainer">
+        <canvas id="sprintChart"></canvas>
     </div>
 
     <script>
-        // Sample build data (you can replace this with real API response later)
-        const buildData = {
-            "count": 1,
-            "value": [
-                {
-                    "buildNumber": "20231114.1",
-                    "status": "completed",
-                    "result": "succeeded",
-                    "startTime": "2023-11-14T08:30:00Z",
-                    "finishTime": "2023-11-14T08:45:00Z"
+        // API endpoint and token
+        const apiUrl = "https://dev.azure.com/kpramod506/DefineRight%20Website%20Devlopment/_apis/work/teamsettings/iterations?api-version=6.0";
+        const patToken = "2PNSldRjmgXGZkXMvuIW11be9hJfQy0xtoJEKoEaUHS7lIQNG0bAJQQJ99AKACAAAAATGfqIAAASAZDOflr8";
+
+        // Fetch sprint data from Azure DevOps
+        async function fetchSprintData() {
+            const response = await fetch(apiUrl, {
+                method: 'GET',
+                headers: {
+                    'Authorization': 'Basic ' + btoa(':' + patToken)
                 }
-            ]
-        };
+            });
 
-        // Extract the startTime and finishTime from the build data
-        const build = buildData.value[0];
-        const startTime = new Date(build.startTime);
-        const finishTime = new Date(build.finishTime);
+            if (response.ok) {
+                const sprintData = await response.json();
+                return sprintData;
+            } else {
+                throw new Error('Failed to fetch sprint data');
+            }
+        }
 
-        // Calculate the build duration in minutes
-        const duration = (finishTime - startTime) / (1000 * 60); // Convert milliseconds to minutes
+        // Calculate remaining and elapsed days for each sprint
+        function calculateDays(startDate, endDate) {
+            const today = new Date();
+            const start = new Date(startDate);
+            const end = new Date(endDate);
 
-        // Format the start and finish times for display (to make them look nicer)
-        const startTimeFormatted = startTime.toLocaleString();
-        const finishTimeFormatted = finishTime.toLocaleString();
+            const elapsed = (today - start) / (1000 * 60 * 60 * 24); // Elapsed days
+            const remaining = (end - today) / (1000 * 60 * 60 * 24); // Remaining days
 
-        // Display the results on the page
-        const buildInfoDiv = document.getElementById('build-info');
-        buildInfoDiv.innerHTML = `
-            <p><strong>Build Number:</strong> ${build.buildNumber}</p>
-            <p><strong>Status:</strong> ${build.status}</p>
-            <p><strong>Result:</strong> ${build.result}</p>
-            <p><strong>Start Time:</strong> ${startTimeFormatted}</p>
-            <p><strong>End Time:</strong> ${finishTimeFormatted}</p>
-            <p><strong>Duration:</strong> ${duration.toFixed(2)} minutes</p>
-        `;
+            return {
+                elapsed: elapsed >= 0 ? Math.min(elapsed, (end - start) / (1000 * 60 * 60 * 24)) : 0,
+                remaining: remaining >= 0 ? remaining : 0
+            };
+        }
+
+        // Format date to "DD Month" (e.g., 31 November)
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            const options = { day: 'numeric', month: 'long' };
+            return date.toLocaleDateString(undefined, options);
+        }
+
+        // Initialize the chart with data
+        async function createSprintChart() {
+            try {
+                const sprintData = await fetchSprintData();
+                const sprints = sprintData.value;
+
+                const labels = [];
+                const elapsedDays = [];
+                const remainingDays = [];
+
+                sprints.forEach(sprint => {
+                    const sprintName = sprint.name;
+                    const startDate = sprint.attributes.startDate;
+                    const endDate = sprint.attributes.finishDate;
+                    const { elapsed, remaining } = calculateDays(startDate, endDate);
+
+                    // Format sprint label as "Sprint Name (End Date)"
+                    const endDateFormatted = formatDate(endDate);
+                    labels.push(`${sprintName} (${endDateFormatted})`);
+
+                    elapsedDays.push(elapsed.toFixed(0)); // Elapsed days for the stack
+                    remainingDays.push(remaining.toFixed(0)); // Remaining days for the stack
+                });
+
+                // Create the stacked bar chart using Chart.js
+                const ctx = document.getElementById('sprintChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels, // Sprint names with end dates as labels
+                        datasets: [
+                            {
+                                label: 'Elapsed Days',
+                                data: elapsedDays,
+                                backgroundColor: '#f39c12',
+                                stack: 'Stack 0',
+                            },
+                            {
+                                label: 'Remaining Days',
+                                data: remainingDays,
+                                backgroundColor: '#2ecc71',
+                                stack: 'Stack 0',
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Azure DevOps Sprint Progress'
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false
+                            }
+                        },
+                        scales: {
+                            x: {
+                                stacked: true
+                            },
+                            y: {
+                                stacked: true,
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error fetching sprint data:', error);
+            }
+        }
+
+        // Call the function to display the chart
+        createSprintChart();
     </script>
 </body>
 </html>
