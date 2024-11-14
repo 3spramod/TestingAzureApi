@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure DevOps Build Info</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        #build-info {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        p {
+            font-size: 16px;
+            margin: 8px 0;
+        }
+        strong {
+            color: #005f99;
+        }
+    </style>
+</head>
+<body>
+    <h1>Build Duration and End Time</h1>
+    
+    <div id="build-info">
+        <!-- Build data will be displayed here -->
+    </div>
+
+    <script>
+        // Sample build data (you can replace this with real API response later)
+        const buildData = {
+            "count": 1,
+            "value": [
+                {
+                    "buildNumber": "20231114.1",
+                    "status": "completed",
+                    "result": "succeeded",
+                    "startTime": "2023-11-14T08:30:00Z",
+                    "finishTime": "2023-11-14T08:45:00Z"
+                }
+            ]
+        };
+
+        // Extract the startTime and finishTime from the build data
+        const build = buildData.value[0];
+        const startTime = new Date(build.startTime);
+        const finishTime = new Date(build.finishTime);
+
+        // Calculate the build duration in minutes
+        const duration = (finishTime - startTime) / (1000 * 60); // Convert milliseconds to minutes
+
+        // Format the start and finish times for display (to make them look nicer)
+        const startTimeFormatted = startTime.toLocaleString();
+        const finishTimeFormatted = finishTime.toLocaleString();
+
+        // Display the results on the page
+        const buildInfoDiv = document.getElementById('build-info');
+        buildInfoDiv.innerHTML = `
+            <p><strong>Build Number:</strong> ${build.buildNumber}</p>
+            <p><strong>Status:</strong> ${build.status}</p>
+            <p><strong>Result:</strong> ${build.result}</p>
+            <p><strong>Start Time:</strong> ${startTimeFormatted}</p>
+            <p><strong>End Time:</strong> ${finishTimeFormatted}</p>
+            <p><strong>Duration:</strong> ${duration.toFixed(2)} minutes</p>
+        `;
+    </script>
+</body>
+</html>
